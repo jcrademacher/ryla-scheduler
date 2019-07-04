@@ -5,7 +5,7 @@ function main() {
 //  date.setHours(date.getHours()+3);
 //  
 //  Logger.log(date.toLocaleTimeString('en-US'));
-  // testing clasp
+  // testing clasp and git
 }
 
 function onOpen() {
