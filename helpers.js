@@ -46,8 +46,7 @@ function removeLegSheets() {
 
 function createLegSheets() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  var legs = [];
+
   var templateLeg = ss.getSheetByName(TEMPLATE_NAME);
   
   for(var i = 1; i <= NUM_LEGS; ++i) {
@@ -61,7 +60,25 @@ function createLegSheets() {
       Logger.log(err);
       legSheet = ss.getSheetByName(name);
     }
-    
-    legs.push(legSheet);
+  }
+}
+
+function loadConstants() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  var rows = 10;
+  var cols = 2;
+
+  var optionsSheet = ss.getSheetByName(OPTIONS_NAME);
+  var optionsRange = optionsSheet.getRange(OPTIONS_START_ROW, OPTIONS_START_COL, rows, cols);
+  var optionsValues = optionsRange.getValues();
+
+  for(var r = 0; r < rows; ++r) {
+    var optionId = optionsValues[r][0];
+    var optionVal = optionsValues[r][1];
+
+    if(optionId != '') {
+      OPTIONS[optionsValues[r][0]] = parseInt(optionsValues[r][1]);
+    }
   }
 }
