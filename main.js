@@ -1,4 +1,5 @@
 function main() {
+  loadConstants();
   initUI();
   
 //  var date = sheetObject.master.getRange(18,1).getValue();
