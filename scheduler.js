@@ -1,3 +1,7 @@
-function myFunction() {
+function scheduleMaster() {
+
+}
+
+function scheduleDualLegElements() {
   
 }

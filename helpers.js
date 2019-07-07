@@ -33,9 +33,10 @@ function smoothCells(sheet) {
 }
 
 function removeLegSheets() {
+  var options = loadConstants();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  for(var i = 1; i <= NUM_LEGS; ++i) {
+
+  for(var i = 1; i <= options[NUM_LEGS]; ++i) {
     var sheet = ss.getSheetByName(LEG_SHEET_NAME(i));
     
     if(sheet != null) {
@@ -45,11 +46,12 @@ function removeLegSheets() {
 }
 
 function createLegSheets() {
+  var options = loadConstants();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   var templateLeg = ss.getSheetByName(TEMPLATE_NAME);
   
-  for(var i = 1; i <= NUM_LEGS; ++i) {
+  for(var i = 1; i <= options[NUM_LEGS]; ++i) {
     var name = LEG_SHEET_NAME(i);
     var legSheet;
     
@@ -59,26 +61,6 @@ function createLegSheets() {
     catch(err) {
       Logger.log(err);
       legSheet = ss.getSheetByName(name);
-    }
-  }
-}
-
-function loadConstants() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  var rows = 10;
-  var cols = 2;
-
-  var optionsSheet = ss.getSheetByName(OPTIONS_NAME);
-  var optionsRange = optionsSheet.getRange(OPTIONS_START_ROW, OPTIONS_START_COL, rows, cols);
-  var optionsValues = optionsRange.getValues();
-
-  for(var r = 0; r < rows; ++r) {
-    var optionId = optionsValues[r][0];
-    var optionVal = optionsValues[r][1];
-
-    if(optionId != '') {
-      OPTIONS[optionsValues[r][0]] = parseInt(optionsValues[r][1]);
     }
   }
 }
