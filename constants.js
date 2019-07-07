@@ -13,6 +13,8 @@ var MASTER_START_ROW = 2;
 
 var NUM_SECTIONS = 6;
 
+var SLOT_SIZE = 30; // in minutes
+
 /* END MASTER SCHEDULE CONSTANTS */
 
 /* SCRIPT OPTIONS */
