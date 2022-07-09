@@ -260,6 +260,7 @@ def run_scheduler():
     # lengths in half hours
     morning_length = 8 
     last_morning_length = 9 
+    print("Initializing schedule...")
     sch = Schedule(num_days=4,num_legs=9)
 
     return sch
@@ -274,3 +275,4 @@ if __name__ == "__main__":
     #     print("Unable to generate a schedule that fits the constraints")
     # else:
     #     print("The schedule has been generated")
+    print("Schedule generated.")

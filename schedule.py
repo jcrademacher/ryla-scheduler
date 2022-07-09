@@ -26,7 +26,10 @@ class Schedule:
         lights_out_last = Activity("Lights OUT",Activity.TYPE_ALL,1,start_time=dt.time(hour=23))
 
         lunch_last = Activity("Lunch",Activity.TYPE_ALL,2,start_time=dt.time(hour=13),id=1)
-        solo_prep = Activity("SOLO PREP",Activity.TYPE_ALL,1,)
+        solo_prep = Activity("SOLO PREP",Activity.TYPE_ALL,1,start_time=dt.time(hour=14))
+        solos = Activity("SOLOs",Activity.TYPE_ALL,4,start_time=dt.time(hour=14,minute=30))
+        pack_up = Activity("Pack Up Camp",Activity.TYPE_ALL,1,start_time=dt.time(hour=16,minute=30))
+        bbq = Activity("Final BBQ",Activity.TYPE_ALL,4,start_time=dt.time(hour=17))
 
         # generate the bare bones required blocks, such as meals, flag ceremony, solos, etc.
         for leg in range(0,num_legs):
@@ -41,6 +44,7 @@ class Schedule:
                     self.sch[leg][day].append(dinner)
                     self.sch[leg][day].append(interact)
                     self.sch[leg][day].append(campsite)
+                    self.sch[leg][day].append(lights_out)
 
                 elif day == 1:
                     self.sch[leg][day].append(flag_ceremony)
@@ -49,6 +53,24 @@ class Schedule:
                     self.sch[leg][day].append(dinner)
                     self.sch[leg][day].append(polio_plus)
                     self.sch[leg][day].append(campsite)
+                    self.sch[leg][day].append(lights_out)
 
                 elif day == 2:
-                    self.sch[leg]
+                    self.sch[leg][day].append(flag_ceremony)
+                    self.sch[leg][day].append(breakfast)
+                    self.sch[leg][day].append(lunch)
+                    self.sch[leg][day].append(free_block)
+                    self.sch[leg][day].append(dinner)
+                    self.sch[leg][day].append(free_block)
+                    self.sch[leg][day].append(final_campfire)
+                    self.sch[leg][day].append(final_ref)
+                    self.sch[leg][day].append(lights_out_last)
+
+                elif day == 3:
+                    self.sch[leg][day].append(flag_ceremony)
+                    self.sch[leg][day].append(breakfast)
+                    self.sch[leg][day].append(lunch_last)
+                    self.sch[leg][day].append(solo_prep)
+                    self.sch[leg][day].append(solos)
+                    self.sch[leg][day].append(pack_up)
+                    self.sch[leg][day].append(bbq)
