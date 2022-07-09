@@ -1,7 +1,0 @@
-function scheduleMaster() {
-
-}
-
-function scheduleDualLegElements() {
-  
-}
