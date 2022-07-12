@@ -262,6 +262,7 @@ def run_scheduler():
     last_morning_length = 9 
     print("Initializing schedule...")
     sch = Schedule(num_days=4,num_legs=9)
+    sch.validate_leg(0)
 
     return sch
 

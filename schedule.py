@@ -6,6 +6,8 @@ class Schedule:
     def __init__(self, num_legs = 12, num_days = 4):
         # the master schedule 3d matrix. 1st index is LEG, 2nd index is day, 3rd index is activity
         self.sch = []
+        self.num_legs = num_legs
+        self.num_days = num_days
 
         reg = Activity("Registration at Tabor",Activity.TYPE_ALL,3,start_time=dt.time(hour=8))
         gtky = Activity("Rules/Trust Falls/Get to Know You",Activity.TYPE_ALL,3,start_time=dt.time(hour=9,minute=30))
@@ -74,3 +76,30 @@ class Schedule:
                     self.sch[leg][day].append(solos)
                     self.sch[leg][day].append(pack_up)
                     self.sch[leg][day].append(bbq)
+
+    def validate_all(self):
+        retval = []
+        for leg in range(0,self.num_legs):
+            if not self.validate_leg(leg):
+                retval.append(leg)
+
+        return retval
+    
+    ## validation function that checks if there are no open gaps/crossovers/repeated activities in the schedule
+    # return value: a 3-tuple of (list_gaps (type: datetime), list_crossovers (type: (Activity1, Activity2)), list_rep (type: (Activity1, Activity1)))
+    def validate_leg(self,leg):
+        leg_sch = self.sch[leg]
+        # check for repetitions
+        leg_sch_filt = leg_sch #list(map(lambda day: list(filter(lambda act: act.type != Activity.TYPE_ALL,day)),leg_sch))
+        leg_sch_filt_flat = [act for day in leg_sch_filt for act in day]
+
+        running_act = []
+        list_rep = []
+        for act in leg_sch_filt_flat:
+            if act in running_act:
+                el = (running_act[running_act.index(act)],act)
+                list_rep.append(el)
+            else:
+                running_act.append(act)
+
+                
