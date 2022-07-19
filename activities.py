@@ -1,3 +1,6 @@
+import datetime as dt
+import copy
+
 class Activity:
     ZONE_CENTRAL = 0
     ZONE_RIDGE = 1
@@ -17,17 +20,19 @@ class Activity:
                 group_size = 1, 
                 id = 0,
                 alias = "",
-                start_time = None):
+                start_time = None,
+                day = 1):
         self.name = name
         self.type = type
         self.zone = zone
-        self.length = length
+        self.duration = dt.timedelta(minutes=30*length)
         self.preferred_days = preferred_days
         self.group_size = group_size
         self.id = id
         self.required = required
         self.alias = alias
         self.start_time = start_time
+        self.day = day
 
     def __eq__(self,other):
         return self.name == other.name
@@ -43,6 +48,14 @@ class Activity:
                 return self.name + " " + str(self.id)
         else:
             return self.alias
+
+    def set_day(self,day):
+        if day < 1 or day > 4:
+            raise Exception("Day cannot be less than 1 or greater than 4")
+        
+        self.day = day
+
+        return copy.deepcopy(self)
     
 
 def get_all_activities():

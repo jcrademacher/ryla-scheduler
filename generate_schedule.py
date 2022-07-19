@@ -262,7 +262,13 @@ def run_scheduler():
     last_morning_length = 9 
     print("Initializing schedule...")
     sch = Schedule(num_days=4,num_legs=9)
-    sch.validate_leg(0)
+    validation = sch.validate_all()
+
+    for leg in range(0,sch.num_legs):
+        print("\n==== Leg " + str(leg+1) + " gaps, crossovers, repetitions: ====\n")
+        print("Gaps: ",validation[leg][0])
+        print("Crossovers: ",validation[leg][1])
+        print("Repetitions: ",validation[leg][2])
 
     return sch
 
