@@ -254,6 +254,10 @@ from schedule import Schedule
     #                 show += "{day:<16}".format(day=event)
     #             print(show)
 
+def solve(sch):
+    sch.add_activity(0,random.choice(activities.get_all_activities()))
+    return sch
+
 
 def run_scheduler():
 
@@ -262,13 +266,16 @@ def run_scheduler():
     last_morning_length = 9 
     print("Initializing schedule...")
     sch = Schedule(num_days=4,num_legs=9)
-    validation = sch.validate_all()
 
-    for leg in range(0,sch.num_legs):
-        print("\n==== Leg " + str(leg+1) + " gaps, crossovers, repetitions: ====\n")
-        print("Gaps: ",validation[leg][0])
-        print("Crossovers: ",validation[leg][1])
-        print("Repetitions: ",validation[leg][2])
+    sch = solve(sch)
+
+    # validation = sch.validate_all()
+
+    # for leg in range(0,sch.num_legs):
+    #     print("\n==== Leg " + str(leg+1) + " gaps, crossovers, repetitions: ====\n")
+    #     print("Gaps: ",validation[leg][0])
+    #     print("Crossovers: ",validation[leg][1])
+    #     print("Repetitions: ",validation[leg][2])
 
     return sch
 

@@ -21,7 +21,7 @@ class Activity:
                 id = 0,
                 alias = "",
                 start_time = None,
-                day = 1):
+                day = 0):
         self.name = name
         self.type = type
         self.zone = zone
