@@ -69,7 +69,7 @@ def make_word_doc(matrix, file_name="Week 1"):
 	:param file_name: str
 	:return: None
 	"""
-	doc = docx.Document("2019 Template Schedules.docx")
+	doc = docx.Document("Template Schedule.docx")
 	style = doc.styles['Normal']
 	font = style.font
 	font.name = 'Arial'

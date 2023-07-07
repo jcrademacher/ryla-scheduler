@@ -1,172 +1,184 @@
 import datetime as dt
 import numpy as np
 from activities import Activity
+import activities
+import random
 
 class Schedule:
-    def __init__(self, num_legs = 12, num_days = 4):
-        # the master schedule list, activities objects hold day and time information
-        self.sch = []
+    def __init__(self, num_legs = 12):
+        # master schedule is defined as an array of 30 min time slots, with the number of 
+        # rows = total activity time at RYLA (in 30 min timeslot units) and
+        # cols = number of activities
+        # the final schedule output is an array of leg #'s in each index of the array representing the master schedule
+
+        self.sch = np.zeros((10,len(activities.get_all_activities()),2),dtype=int)
         self.num_legs = num_legs
-        self.num_days = num_days
 
-        self.date = dt.datetime(2023,6,1)
+    # randomizes the initial schedule
+    def init_schedule(self):
+        dict_acts = activities.get_dict_activities()
+        list_acts = activities.get_all_activities()
+        req_acts = activities.get_required_activities()
 
-        reg = Activity("Registration at Tabor",Activity.TYPE_ALL,3,start_time=dt.time(hour=8))
-        gtky = Activity("Rules/Trust Falls/Get to Know You",Activity.TYPE_ALL,3,start_time=dt.time(hour=9,minute=30))
-        bsa_welcome = Activity("BSA Welcome",Activity.TYPE_ALL,3,start_time=dt.time(hour=11))
+        gsize = np.vectorize(lambda x: x.group_size)
+        idx_single = np.flatnonzero(gsize(np.array(list_acts))==1)
+        idx_double = np.flatnonzero(gsize(np.array(list_acts))==2)
+
+        # don't need the last iteration since all activities are of length at least 2
+        for slot in range(0,self.sch.shape[0]-1):
+            avail_single_acts = np.array(list_acts)[idx_single][np.flatnonzero((self.sch[slot,idx_single,0] == 0))]
+            avail_double_acts = np.array(list_acts)[idx_double][np.flatnonzero((self.sch[slot,idx_double] == 0).any(axis=1))]
+
+            avail_acts = np.concatenate((avail_single_acts,avail_double_acts))
+
+            ffunc = np.vectorize(lambda x: slot+x.length <= self.sch.shape[0])
+            filtered_activities = avail_acts[np.where(ffunc(avail_acts))]
+
+            for leg in range(1,self.num_legs+1):
+                if leg in self.sch[slot,:]:
+                    continue
+
+                a = list(dict_acts.keys()).index(random.choice(filtered_activities).name)
+
+                # wait until a random activity is found to be available (including group activities) and the leg has not already done this activity
+                while self.sch[slot,a][0:list_acts[a].group_size].all() or leg in self.sch[:,a]:
+                    a = list(dict_acts.keys()).index(random.choice(filtered_activities).name)
+
+                activity = list_acts[a]
+
+                self.sch[slot:slot+activity.length,a,0] = leg
+
+                if activity.group_size == 2:
+                    other_legs = np.unique(np.concatenate((self.sch[slot,:],self.sch[:,a]),axis=0))
+                    avail_legs = np.setdiff1d(np.array(range(0,self.num_legs+1)),other_legs)
+
+                    if avail_legs.shape[0] > 0:
+                        partner_leg = random.choice(avail_legs)
+                    else:
+                        partner_leg = 0
+
+                    if leg == partner_leg:
+                        pass
+
+                    self.sch[slot:slot+activity.length,a,1] = partner_leg
+                
+                
+
+    # function checks if leg is double scheduled in same period
+    def validate_duplicates(self):
+        dups = np.zeros(self.sch)
+        for slot in range(0,self.sch.shape[0]):
+            trimmed = list(filter(None,self.sch[slot,:]))
+
+
+
+    # returns a 1D list of the leg schedule 
+    # def get_leg_schedule(self,leg):
+    #     leg_sch = np.zeros(self.sch.shape[0])
+    #     slot = 0
+    #     while slot < self.sch.shape[0]:
+    #         slot_sch = self.sch[slot,:]
+
+    # ## adds activity in the specified day/time. If day/time not specified adds activity at earliest gap
+    # # returns true if activity was added successfully, returns false if the activity could not be added
+    # def add_activity(self,leg,act,start_dt = None):
+    #     leg_sch = self.sch[leg]
+    #     ## if time or day not specified find next open gap
+    #     if start_dt is None:
+    #         (index,gap_start,gap_delta) = self.find_gap_after(leg)
+
+    #         while gap_delta < act.duration:
+    #             (index,gap_start,gap_delta) = self.find_gap_after(leg,gap_start)
+
+    #         if index < 0:
+    #             return False
+
+    #         start_time = leg_sch[index-1].start_dt+leg_sch[index-1].duration
+
+    #         leg_sch.insert(index,act.set_start_dt(start_time))
+
+    #         return True
+
+    # # returns activity index where gap ends, the start datetime, and the time delta associated with that gap
+    # # if day and start_time are provided will search for gap after day and time
+    # def find_gap_after(self,leg,after_dt = None):
+    #     leg_sch = self.sch[leg]
+
+    #     # find next gap
+    #     prev_act = None
+    #     index = 0
+    #     for act in leg_sch:
+    #         act_when = act.start_dt
+    #         if prev_act is None or (after_dt is not None and act_when < after_dt):
+    #             prev_act = act
+    #             index += 1
+    #             continue
         
-        flag_ceremony = Activity("Flag Ceremony",Activity.TYPE_ALL,0.5,start_time=dt.time(hour=7,minute=15))
-        breakfast = Activity("Breakfast",Activity.TYPE_ALL,2,start_time=dt.time(hour=7,minute=30))
-        lunch = Activity("Lunch",Activity.TYPE_ALL,2,start_time=dt.time(hour=12,minute=30),id=0)
-        dinner = Activity("Dinner",Activity.TYPE_ALL,2,start_time=dt.time(hour=18,minute=30))
-        campsite = Activity("Campsite",Activity.TYPE_ALL,3,start_time=dt.time(hour=20,minute=30))
-        lights_out = Activity("Lights OUT",Activity.TYPE_ALL,1,start_time=dt.time(hour=22))
+    #         # generate datetime objects representing the day and time the activity occurs
+    #         prev_act_when = prev_act.start_dt
+            
+    #         # check for a gap (and statement prevents the gap from lights out --> breakfast on the next day from generating a gap)
+    #         if prev_act_when + prev_act.duration < act_when and prev_act.start_dt.day == act.start_dt.day:
+    #             return (index,prev_act_when+prev_act.duration,act_when - (prev_act_when+prev_act.duration))
 
-        interact = Activity("Interact Discussions: Dining Hall",Activity.TYPE_ALL,2,start_time=dt.time(hour=19,minute=30))
-        polio_plus = Activity("Polio Plus: Dining Hall",Activity.TYPE_ALL,2,start_time=dt.time(hour=19,minute=30))
-        
-        skit_prep = Activity("Skit Prep",Activity.TYPE_ALL,2,start_time=dt.time(hour=17,minute=30))
-        free_block = Activity("Free Block",Activity.TYPE_ALL,1,start_time=dt.time(hour=19,minute=30))
-        final_campfire = Activity("Final Campfire",Activity.TYPE_ALL,3,start_time=dt.time(hour=20))
-        final_ref = Activity("Final Reflection",Activity.TYPE_ALL,3,start_time=dt.time(hour=21,minute=30))
-        lights_out_last = Activity("Lights OUT",Activity.TYPE_ALL,1,start_time=dt.time(hour=23))
+    #         prev_act = act
+    #         index += 1
 
-        lunch_last = Activity("Lunch",Activity.TYPE_ALL,2,start_time=dt.time(hour=13),id=1)
-        solo_prep = Activity("SOLO PREP",Activity.TYPE_ALL,1,start_time=dt.time(hour=14))
-        solos = Activity("SOLOs",Activity.TYPE_ALL,4,start_time=dt.time(hour=14,minute=30))
-        pack_up = Activity("Pack Up Camp",Activity.TYPE_ALL,1,start_time=dt.time(hour=16,minute=30))
-        bbq = Activity("Final BBQ",Activity.TYPE_ALL,4,start_time=dt.time(hour=17))
+    #     # indicates no gaps found
+    #     return (-1,None,None)
 
-        # generate the bare bones required blocks, such as meals, flag ceremony, solos, etc.
-        for leg in range(0,num_legs):
-            self.sch.append([])
-            for day in range(0,num_days):
-                if day == 0:
-                    self.sch[leg].append(reg.set_day(day))
-                    self.sch[leg].append(gtky.set_day(day))
-                    self.sch[leg].append(bsa_welcome.set_day(day))
-                    self.sch[leg].append(lunch.set_day(day))
-                    self.sch[leg].append(dinner.set_day(day))
-                    self.sch[leg].append(interact.set_day(day))
-                    self.sch[leg].append(campsite.set_day(day))
-                    self.sch[leg].append(lights_out.set_day(day))
+    # def validate_all(self):
+    #     retval = []
+    #     for leg in range(0,self.num_legs):
+    #         retval.append(self.validate_leg(leg))
 
-                elif day == 1:
-                    self.sch[leg].append(flag_ceremony.set_day(day))
-                    self.sch[leg].append(breakfast.set_day(day))
-                    self.sch[leg].append(lunch.set_day(day))
-                    self.sch[leg].append(dinner.set_day(day))
-                    self.sch[leg].append(polio_plus.set_day(day))
-                    self.sch[leg].append(campsite.set_day(day))
-                    self.sch[leg].append(lights_out.set_day(day))
-
-                elif day == 2:
-                    self.sch[leg].append(flag_ceremony.set_day(day))
-                    self.sch[leg].append(breakfast.set_day(day))
-                    self.sch[leg].append(lunch.set_day(day))
-                    self.sch[leg].append(skit_prep.set_day(day))
-                    self.sch[leg].append(dinner.set_day(day))
-                    self.sch[leg].append(free_block.set_day(day))
-                    self.sch[leg].append(final_campfire.set_day(day))
-                    self.sch[leg].append(final_ref.set_day(day))
-                    self.sch[leg].append(lights_out_last.set_day(day))
-
-                elif day == 3:
-                    self.sch[leg].append(flag_ceremony.set_day(day))
-                    self.sch[leg].append(breakfast.set_day(day))
-                    self.sch[leg].append(lunch_last.set_day(day))
-                    self.sch[leg].append(solo_prep.set_day(day))
-                    self.sch[leg].append(solos.set_day(day))
-                    self.sch[leg].append(pack_up.set_day(day))
-                    self.sch[leg].append(bbq.set_day(day))
+    #     return retval
     
+    # ## validation function that checks if there are no open gaps/crossovers/repeated activities in the leg's schedule
+    # # return value: a 3-tuple of (list_gaps (type: (datetime,timedelta)), list_crossovers (type: (Activity1, Activity2)), list_rep (type: (Activity1, Activity1)))
+    # def validate_leg(self,leg):
+    #     leg_sch = self.sch[leg]
 
-    def when_activity(self,act):
-        return dt.datetime.combine(self.date+dt.timedelta(days=act.day),act.start_time)
+    #     running_act = []
 
-    ## adds activity in the specified day/time within activity and also ensures that the addition does not conflict with other legs
-    def add_activity(self,leg,act):
-        leg_sch = self.sch[leg]
-        ## if time or day not specified find next open gap
-        if act.start_time is None or act.day is None:
-            (index,day,opening_delta) = self.find_earliest_gap(leg)
-
-            start_time = self.when_activity(leg_sch[index-1])
-            self.sch[leg].insert(index,act.set_day_time()) ##### UNFINISHED
-
-
-    # returns activity index where gap ends, and the time delta associated with that gap
-    def find_earliest_gap(self,leg):
-        leg_sch = self.sch[leg]
-
-        # find next gap
-        prev_act = None
-        index = 0
-        for act in leg_sch:
-            if prev_act is None:
-                prev_act = act
-                index += 1
-                continue
-            
-            # generate datetime objects representing the day and time the activity occurs
-            prev_act_when = dt.datetime.combine(self.date+dt.timedelta(days=prev_act.day),prev_act.start_time)
-            act_when = dt.datetime.combine(self.date+dt.timedelta(days=act.day),act.start_time)
-            
-            # check for a gap (and statement prevents the gap from lights out --> breakfast on the next day from generating a gap)
-            if prev_act_when + prev_act.duration < act_when and prev_act.day == act.day:
-                return (index,act.day,act_when - (prev_act_when+prev_act.duration))
-
-            prev_act = act
-            index += 1
-
-    def validate_all(self):
-        retval = []
-        for leg in range(0,self.num_legs):
-            retval.append(self.validate_leg(leg))
-
-        return retval
-    
-    ## validation function that checks if there are no open gaps/crossovers/repeated activities in the leg's schedule
-    # return value: a 3-tuple of (list_gaps (type: (datetime,timedelta)), list_crossovers (type: (Activity1, Activity2)), list_rep (type: (Activity1, Activity1)))
-    def validate_leg(self,leg):
-        leg_sch = self.sch[leg]
-
-        running_act = []
-
-        list_gaps = []
-        list_crossovers = []
-        list_rep = []
+    #     list_gaps = []
+    #     list_crossovers = []
+    #     list_rep = []
         
-        # find gaps and crossovers
-        prev_act = None
-        for act in leg_sch:
-            if prev_act is None:
-                prev_act = act
-                continue
+    #     # find gaps and crossovers
+    #     prev_act = None
+    #     for act in leg_sch:
+    #         if prev_act is None:
+    #             prev_act = act
+    #             continue
             
-            # generate datetime objects representing the day and time the activity occurs
-            prev_act_when = dt.datetime.combine(self.date+dt.timedelta(days=prev_act.day),prev_act.start_time)
-            act_when = dt.datetime.combine(self.date+dt.timedelta(days=act.day),act.start_time)
+    #         # generate datetime objects representing the day and time the activity occurs
+    #         prev_act_when = dt.datetime.combine(self.date+dt.timedelta(days=prev_act.day),prev_act.start_time)
+    #         act_when = dt.datetime.combine(self.date+dt.timedelta(days=act.day),act.start_time)
             
-            # check for a gap (and statement prevents the gap from lights out --> breakfast on the next day from generating a gap)
-            if prev_act_when + prev_act.duration < act_when and prev_act.day == act.day:
-                list_gaps.append((prev_act_when+prev_act.duration,act_when - (prev_act_when+prev_act.duration)))
-            elif prev_act_when + prev_act.duration > act_when and prev_act.day == act.day:
-                list_crossovers.append((prev_act,act))
+    #         # check for a gap (and statement prevents the gap from lights out --> breakfast on the next day from generating a gap)
+    #         if prev_act_when + prev_act.duration < act_when and prev_act.day == act.day:
+    #             list_gaps.append((prev_act_when+prev_act.duration,act_when - (prev_act_when+prev_act.duration)))
+    #         elif prev_act_when + prev_act.duration > act_when and prev_act.day == act.day:
+    #             list_crossovers.append((prev_act,act))
 
-            prev_act = act
+    #         prev_act = act
 
-        # find repetitions
-        # filter out all activities that all legs do (TYPE_ALL)
-        filtered_sch = list(filter(lambda x: x.type != Activity.TYPE_ALL,leg_sch))
+    #     # find repetitions
+    #     # filter out all activities that all legs do (TYPE_ALL)
+    #     filtered_sch = list(filter(lambda x: x.type != Activity.TYPE_ALL,leg_sch))
 
-        for act in filtered_sch:
-            if act in running_act:
-                el = (running_act[running_act.index(act)],act)
-                list_rep.append(el)
-            else:
-                running_act.append(act)
+    #     for act in filtered_sch:
+    #         if act in running_act:
+    #             el = (running_act[running_act.index(act)],act)
+    #             list_rep.append(el)
+    #         else:
+    #             running_act.append(act)
 
-        return (list_gaps,list_crossovers,list_rep)
+    #     return (list_gaps,list_crossovers,list_rep)
+
+    # ## TO BO IMPLEMENTED. Checks that there are no conflicts amongst legs
+    # def cross_validate(self):
+    #     pass
 
                 
