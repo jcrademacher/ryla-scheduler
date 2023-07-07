@@ -2,7 +2,6 @@ import datetime as dt
 import numpy as np
 from activities import Activity
 import activities
-import random
 
 class Schedule:
     def __init__(self, num_legs = 12):
@@ -11,40 +10,48 @@ class Schedule:
         # cols = number of activities
         # the final schedule output is an array of leg #'s in each index of the array representing the master schedule
 
-        self.sch = np.zeros((10,len(activities.get_all_activities()),2),dtype=int)
+        self.acts = activities.get_all_activities()
+        self.sch = np.zeros((10,len(self.acts),2),dtype=int)
         self.num_legs = num_legs
+
+        mapper = np.vectorize(lambda a: a.alias)
+        unq, unq_idx, unq_cnt = np.unique(mapper(self.acts), return_inverse=True, return_counts=True)
+        cnt_mask = unq_cnt > 1
+        cnt_idx, = np.nonzero(cnt_mask)
+        idx_mask = np.in1d(unq_idx, cnt_idx)
+        idx_idx, = np.nonzero(idx_mask)
+        srt_idx = np.argsort(unq_idx[idx_mask])
+        self.dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
+
+        self.init_schedule()
 
     # randomizes the initial schedule
     def init_schedule(self):
-        dict_acts = activities.get_dict_activities()
-        list_acts = activities.get_all_activities()
-        req_acts = activities.get_required_activities()
-
-        gsize = np.vectorize(lambda x: x.group_size)
-        idx_single = np.flatnonzero(gsize(np.array(list_acts))==1)
-        idx_double = np.flatnonzero(gsize(np.array(list_acts))==2)
-
+        acts = self.acts
+        
         # don't need the last iteration since all activities are of length at least 2
         for slot in range(0,self.sch.shape[0]-1):
-            avail_single_acts = np.array(list_acts)[idx_single][np.flatnonzero((self.sch[slot,idx_single,0] == 0))]
-            avail_double_acts = np.array(list_acts)[idx_double][np.flatnonzero((self.sch[slot,idx_double] == 0).any(axis=1))]
-
-            avail_acts = np.concatenate((avail_single_acts,avail_double_acts))
+            avail_acts = self.get_available_activities(slot)
 
             ffunc = np.vectorize(lambda x: slot+x.length <= self.sch.shape[0])
-            filtered_activities = avail_acts[np.where(ffunc(avail_acts))]
+            act_idx = avail_acts[ffunc(acts[avail_acts])]
 
             for leg in range(1,self.num_legs+1):
+                # skips processing of this leg if it is already scheduled in a slot
                 if leg in self.sch[slot,:]:
                     continue
+                
+                leg_idx = self.get_leg_activities(leg)
+                avail_idx = np.setdiff1d(act_idx,leg_idx)
 
-                a = list(dict_acts.keys()).index(random.choice(filtered_activities).name)
+                # choose a random activity from the available list
+                a = np.random.choice(avail_idx)
+                activity = acts[a]
+                # adx = 
 
-                # wait until a random activity is found to be available (including group activities) and the leg has not already done this activity
-                while self.sch[slot,a][0:list_acts[a].group_size].all() or leg in self.sch[:,a]:
-                    a = list(dict_acts.keys()).index(random.choice(filtered_activities).name)
-
-                activity = list_acts[a]
+                # # wait until a random activity is found to be available (including group activities) and the leg has not already done this activity
+                # while self.sch[slot,a][0:acts[a].group_size].all() or leg in self.sch[:,a]:
+                #     a = list(dict_acts.keys()).index(random.choice(filtered_activities).name)
 
                 self.sch[slot:slot+activity.length,a,0] = leg
 
@@ -53,16 +60,20 @@ class Schedule:
                     avail_legs = np.setdiff1d(np.array(range(0,self.num_legs+1)),other_legs)
 
                     if avail_legs.shape[0] > 0:
-                        partner_leg = random.choice(avail_legs)
-                    else:
+                        partner_leg = np.random.choice(avail_legs)
+                    else: # find legs who have activites scheduled ALONE, remove them and partner with existing leg
+                        # first find legs who have activities starting now
                         partner_leg = 0
 
                     if leg == partner_leg:
                         pass
 
                     self.sch[slot:slot+activity.length,a,1] = partner_leg
+
+                # remove activity index from available activities after scheduling
+                act_idx = np.setdiff1d(act_idx,np.array(a))
                 
-                
+        return self.sch       
 
     # function checks if leg is double scheduled in same period
     def validate_duplicates(self):
@@ -70,8 +81,45 @@ class Schedule:
         for slot in range(0,self.sch.shape[0]):
             trimmed = list(filter(None,self.sch[slot,:]))
 
+    # returns the indices of the activities that are available to schedule from a given slot
+    def get_available_activities(self,slot):
+        gsize = np.vectorize(lambda x: x.group_size)
 
+        avail_single_acts = np.logical_and(self.sch[slot,:,0]==0,gsize(self.acts)==1)
+        avail_double_acts = np.logical_and((self.sch[slot,:] == 0).any(axis=1),gsize(self.acts)==2)
 
+        return np.arange(self.acts.shape[0])[np.logical_or(avail_single_acts,avail_double_acts)]
+
+    
+    # returns the indices of the activities that the leg has already done
+    def get_leg_activities(self,leg):
+        done_idx = np.arange(0,self.acts.shape[0])[(self.sch == leg).any(axis=2).any(axis=0)]
+
+        # inserts the activity that has the same alias but wasn't necessarily scheduled into the done_idx array
+        # this is done so that activities that have different locations and can in fact be scheduled simultaneously
+        # are NOT rescheduled for the same leg. i.e. ensures that that leg is not repeating multi-location elements
+        for dup in self.dup_idx:
+            isect = np.intersect1d(done_idx,dup)
+            if isect.size != 0:
+                done_idx = np.unique(np.append(done_idx,dup))
+        
+        return done_idx
+    
+    # returns a 1D array of the activity indices the leg has scheduled, in the 30 min time slots. Inserts "None" if no activity is scheduled (a break)
+    def get_leg_schedule(self,leg):
+        act_list = []
+        slot = 0
+        while slot < self.sch.shape[0]:
+            adx = np.arange(0,self.acts.size)[(self.sch[slot,:] == leg).any(axis=1)]
+
+            if adx.size != 0:
+                act_list.append(adx[0])
+            else:
+                act_list.append(None)
+
+            slot = slot + 1
+        
+        return np.array(act_list)
     # returns a 1D list of the leg schedule 
     # def get_leg_schedule(self,leg):
     #     leg_sch = np.zeros(self.sch.shape[0])

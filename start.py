@@ -9,9 +9,14 @@ from PyQt6.QtWidgets import QApplication, QLabel, QWidget, QGridLayout, QFrame
 
 # Run the app
 if __name__ == "__main__":
-    
-    sch = Schedule()
-    sch.init_schedule()
+
+    pop_size = 10
+
+    schedules = []
+
+    for i in range(0,pop_size):
+        sch = Schedule()
+        schedules.append(sch)
 
     app = QApplication([])
 
@@ -32,13 +37,21 @@ if __name__ == "__main__":
         frame.setLineWidth(1)
         layout.addWidget(frame, 0, a, 1 ,1)
 
-    for col in range(0,sch.sch.shape[1]):
+    sch = schedules[0].sch
+
+    solver = ScheduleSolver(schedules)
+
+    for i in range(0,1000):
+        print("Fitness")
+        solver.fitness(schedules[0])
+
+    for col in range(0,sch.shape[1]):
         row = 0
-        while row < sch.sch.shape[0]:
+        while row < sch.shape[0]:
             if row == -1:
                 frame=QLabel()
 
-            leg = sch.sch[row,col]
+            leg = sch[row,col]
 
             length = 0
             newleg = leg
@@ -47,10 +60,10 @@ if __name__ == "__main__":
                 length = length + 1
                 row = row + 1
 
-                if row >= sch.sch.shape[0]:
+                if row >= sch.shape[0]:
                     break
 
-                newleg = sch.sch[row,col]
+                newleg = sch[row,col]
 
             frame = QLabel(str(leg))
             frame.setFrameStyle(QFrame.Shape.Panel)
@@ -68,8 +81,7 @@ if __name__ == "__main__":
     
     window.show()
 
-    print(sch.sch)
+    print(sch)
 
-    solver = ScheduleSolver(sch)
 
     sys.exit(app.exec())
