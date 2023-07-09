@@ -4,15 +4,21 @@ from activities import Activity
 import activities
 
 class Schedule:
-    def __init__(self, num_legs = 12):
+    def __init__(self, num_legs = 12, sch=None):
         # master schedule is defined as an array of 30 min time slots, with the number of 
         # rows = total activity time at RYLA (in 30 min timeslot units) and
         # cols = number of activities
         # the final schedule output is an array of leg #'s in each index of the array representing the master schedule
+        self.penalty_req = 10
+        self.penalty_act_overlap = 100
+        self.penalty_act_dup = 100    
 
         self.acts = activities.get_all_activities()
-        self.sch = np.zeros((10,len(self.acts),2),dtype=int)
+
         self.num_legs = num_legs
+
+        (req_acts, req_acts_idx) = activities.get_required_activities()
+        self.req_acts_idx = req_acts_idx
 
         mapper = np.vectorize(lambda a: a.alias)
         unq, unq_idx, unq_cnt = np.unique(mapper(self.acts), return_inverse=True, return_counts=True)
@@ -23,7 +29,11 @@ class Schedule:
         srt_idx = np.argsort(unq_idx[idx_mask])
         self.dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
 
-        self.init_schedule()
+        if sch is None:
+            self.sch = np.zeros((10,len(self.acts),2),dtype=int)
+            self.init_schedule()
+        else:
+            self.sch = sch
 
     # randomizes the initial schedule
     def init_schedule(self):
@@ -120,6 +130,66 @@ class Schedule:
             slot = slot + 1
         
         return np.array(act_list)
+
+    # defines the fitness function of the solver
+    # this function outputs a real number between 0 and +infinity
+    # COMPONENTS:
+    # 1. Travel time between activities, defined as the sum of the squared distance between consecutive activity zones
+    # 2. Activity requirement. If a required activity is not scheduled, outputs PENALTY_REQ. If it is scheduled, outputs 0
+    # 3. Activity overlap. 2 activities cannot be scheduled at the same time
+    # 3. Day preferences, defined as the minimum of the squared distance between scheduled day and preferred days vector
+    def fitness(self):
+
+        fitness = 0
+        sch = self.sch  
+        
+        req_acts_idx = self.req_acts_idx
+        
+        travel_times = np.zeros(self.num_legs)
+        req_sums = np.zeros(self.num_legs)
+
+        for leg in range(1,self.num_legs+1):
+            leg_sch = self.get_leg_schedule(leg)
+            
+            #### travel time component: ####
+            zoner = np.vectorize(lambda a: 0 if (a is None) else self.acts[a].zone)
+            travel_times[leg-1] = np.sum(np.ediff1d(zoner(leg_sch))**2)
+
+            #### requirement component: ####
+            acts_done = np.unique(leg_sch[leg_sch != np.array(None)])
+            req_sums[leg-1] = self.penalty_req*np.abs(np.sum(np.isin(req_acts_idx,acts_done))-req_acts_idx.size)
+
+        #### activity overlap component: ####
+        overlap_sum = 0
+        for slot in range(0,sch.shape[0]):
+            flattened = np.ravel(sch[slot,:,:])
+            nonzero = flattened[flattened != 0]
+            (arr,counts) = np.unique(nonzero,return_counts=True)
+            overlap_sum = overlap_sum + (arr[counts>1].size)*self.penalty_act_overlap
+
+
+        fitness = np.sum(travel_times)+np.sum(req_sums)+overlap_sum
+
+        return fitness
+
+    def __gt__(self, other):
+        return self.fitness() > other.fitness()
+    
+    def __lt__(self,other):
+        return self.fitness() < other.fitness()
+    
+    def __ge__(self,other):
+        return self.fitness() >= other.fitness()
+    
+    def __le__(self,other):
+        return self.fitness() <= other.fitness()
+    
+    def __eq__(self,other):
+        return self.fitness() == other.fitness()
+    
+    def __ne__(self,other):
+        return self.fitness() != other.fitness()
+
     # returns a 1D list of the leg schedule 
     # def get_leg_schedule(self,leg):
     #     leg_sch = np.zeros(self.sch.shape[0])

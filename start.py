@@ -3,6 +3,9 @@ from solver import ScheduleSolver
 import activities
 import sys
 import numpy as np
+import signal
+
+from threading import Thread
 
 # 1. Import QApplication and all the required widgets
 from PyQt6.QtWidgets import QApplication, QLabel, QWidget, QGridLayout, QFrame
@@ -10,13 +13,13 @@ from PyQt6.QtWidgets import QApplication, QLabel, QWidget, QGridLayout, QFrame
 # Run the app
 if __name__ == "__main__":
 
-    pop_size = 10
+    # pop_size = 100
 
-    schedules = []
+    # schedules = []
 
-    for i in range(0,pop_size):
-        sch = Schedule()
-        schedules.append(sch)
+    # for i in range(0,pop_size):
+    #     sch = Schedule()
+    #     schedules.append(sch)
 
     app = QApplication([])
 
@@ -37,13 +40,15 @@ if __name__ == "__main__":
         frame.setLineWidth(1)
         layout.addWidget(frame, 0, a, 1 ,1)
 
-    sch = schedules[0].sch
+    solver = ScheduleSolver(100)
 
-    solver = ScheduleSolver(schedules)
+    # def signal_handler(sig, frame):
+    #     print('You pressed Ctrl+C!')
+    #     sys.exit(0)
 
-    for i in range(0,1000):
-        print("Fitness")
-        solver.fitness(schedules[0])
+    # signal.signal(signal.SIGINT, signal_handler)
+
+    sch = solver.solve().sch
 
     for col in range(0,sch.shape[1]):
         row = 0
