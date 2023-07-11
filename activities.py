@@ -85,7 +85,7 @@ def get_all_activities():
         Activity("Public Speaking",Activity.TYPE_PROGRAM,3,Activity.ZONE_CENTRAL,required=True,preferred_days=[1,2]),
         Activity("Leadership With",Activity.TYPE_PROGRAM,3,Activity.ZONE_WATERFRONT,required=True,preferred_days=[1,2]),
         Activity("Water Program",Activity.TYPE_PROGRAM,4,Activity.ZONE_WATERFRONT,required=True,preferred_days=[1,2],group_size=2),
-        Activity("High Ropes",Activity.TYPE_PROGRAM,4,Activity.ZONE_CENTRAL,required=True,preferred_days=[0,1,2],group_size=1),
+        Activity("High Ropes",Activity.TYPE_PROGRAM,4,Activity.ZONE_CENTRAL,required=True,preferred_days=[0,1,2],group_size=1)
     ]
 
     return np.array(activities)
@@ -105,7 +105,10 @@ def get_required_activities():
     mapper = np.vectorize(lambda act: act.required)
     return (acts[mapper(acts)],np.arange(0,acts.size)[mapper(acts)])
 
-
+def get_activities_mapped(ufunc):
+    acts = get_all_activities()
+    mapper = np.vectorize(ufunc)
+    return mapper(acts)
 
 # def get_aliased_activities():
 #     acts = get_all_activities()

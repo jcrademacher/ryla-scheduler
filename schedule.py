@@ -4,21 +4,26 @@ from activities import Activity
 import activities
 
 class Schedule:
-    def __init__(self, num_legs = 12, sch=None):
+    def __init__(self, num_legs = 12, num_slots=48, sch=None):
         # master schedule is defined as an array of 30 min time slots, with the number of 
         # rows = total activity time at RYLA (in 30 min timeslot units) and
         # cols = number of activities
         # the final schedule output is an array of leg #'s in each index of the array representing the master schedule
-        self.penalty_req = 10
-        self.penalty_act_overlap = 100
-        self.penalty_act_dup = 100    
+        self.penalty_req = 1
+        self.penalty_act_overlap = 2
+        self.penalty_act_dup = 2
+        self.penalty_act_length = 2    
 
         self.acts = activities.get_all_activities()
 
         self.num_legs = num_legs
+        self.num_slots = num_slots
 
         (req_acts, req_acts_idx) = activities.get_required_activities()
         self.req_acts_idx = req_acts_idx
+
+        self.act_lengths = activities.get_activities_mapped(lambda a: a.length)
+        self.act_gsizes = activities.get_activities_mapped(lambda a: a.group_size)
 
         mapper = np.vectorize(lambda a: a.alias)
         unq, unq_idx, unq_cnt = np.unique(mapper(self.acts), return_inverse=True, return_counts=True)
@@ -30,60 +35,67 @@ class Schedule:
         self.dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
 
         if sch is None:
-            self.sch = np.zeros((10,len(self.acts),2),dtype=int)
             self.init_schedule()
         else:
             self.sch = sch
+        
+        self.fitness_val = self.fitness()
 
     # randomizes the initial schedule
     def init_schedule(self):
-        acts = self.acts
+        # -1 indicates no activity is scheduled
+        self.sch = np.random.randint(-1,self.acts.size,size=(self.num_slots,self.num_legs))
+        # acts = self.acts
         
-        # don't need the last iteration since all activities are of length at least 2
-        for slot in range(0,self.sch.shape[0]-1):
-            avail_acts = self.get_available_activities(slot)
+        # # don't need the last iteration since all activities are of length at least 2
+        # for slot in range(0,self.sch.shape[0]-1):
+        #     avail_acts = self.get_available_activities(slot)
 
-            ffunc = np.vectorize(lambda x: slot+x.length <= self.sch.shape[0])
-            act_idx = avail_acts[ffunc(acts[avail_acts])]
+        #     ffunc = np.vectorize(lambda x: slot+x.length <= self.sch.shape[0])
+        #     act_idx = avail_acts[ffunc(acts[avail_acts])]
 
-            for leg in range(1,self.num_legs+1):
-                # skips processing of this leg if it is already scheduled in a slot
-                if leg in self.sch[slot,:]:
-                    continue
+        #     for leg in range(1,self.num_legs+1):
+        #         # skips processing of this leg if it is already scheduled in a slot
+        #         if leg in self.sch[slot,:]:
+        #             continue
                 
-                leg_idx = self.get_leg_activities(leg)
-                avail_idx = np.setdiff1d(act_idx,leg_idx)
+        #         leg_idx = self.get_leg_activities(leg)
+        #         avail_idx = np.setdiff1d(act_idx,leg_idx)
 
-                # choose a random activity from the available list
-                a = np.random.choice(avail_idx)
-                activity = acts[a]
-                # adx = 
+        #         # choose a random activity from the available list
+        #         if avail_idx.size != 0:
+        #             a = np.random.choice(avail_idx)
+        #         else:
+        #             a = np.random.choice(act_idx)
 
-                # # wait until a random activity is found to be available (including group activities) and the leg has not already done this activity
-                # while self.sch[slot,a][0:acts[a].group_size].all() or leg in self.sch[:,a]:
-                #     a = list(dict_acts.keys()).index(random.choice(filtered_activities).name)
+        #         activity = acts[a]
+        #         # adx = 
 
-                self.sch[slot:slot+activity.length,a,0] = leg
+        #         # # wait until a random activity is found to be available (including group activities) and the leg has not already done this activity
+        #         # while self.sch[slot,a][0:acts[a].group_size].all() or leg in self.sch[:,a]:
+        #         #     a = list(dict_acts.keys()).index(random.choice(filtered_activities).name)
 
-                if activity.group_size == 2:
-                    other_legs = np.unique(np.concatenate((self.sch[slot,:],self.sch[:,a]),axis=0))
-                    avail_legs = np.setdiff1d(np.array(range(0,self.num_legs+1)),other_legs)
+        #         self.sch[slot:slot+activity.length,a,0] = leg
 
-                    if avail_legs.shape[0] > 0:
-                        partner_leg = np.random.choice(avail_legs)
-                    else: # find legs who have activites scheduled ALONE, remove them and partner with existing leg
-                        # first find legs who have activities starting now
-                        partner_leg = 0
+        #         if activity.group_size == 2:
+        #             other_legs = np.unique(np.concatenate((self.sch[slot,:],self.sch[:,a]),axis=0))
+        #             avail_legs = np.setdiff1d(np.array(range(0,self.num_legs+1)),other_legs)
 
-                    if leg == partner_leg:
-                        pass
+        #             if avail_legs.shape[0] > 0:
+        #                 partner_leg = np.random.choice(avail_legs)
+        #             else: # find legs who have activites scheduled ALONE, remove them and partner with existing leg
+        #                 # first find legs who have activities starting now
+        #                 partner_leg = 0
 
-                    self.sch[slot:slot+activity.length,a,1] = partner_leg
+        #             if leg == partner_leg:
+        #                 pass
 
-                # remove activity index from available activities after scheduling
-                act_idx = np.setdiff1d(act_idx,np.array(a))
+        #             self.sch[slot:slot+activity.length,a,1] = partner_leg
+
+        #         # remove activity index from available activities after scheduling
+        #         act_idx = np.setdiff1d(act_idx,np.array(a))
                 
-        return self.sch       
+        # return self.sch       
 
     # function checks if leg is double scheduled in same period
     def validate_duplicates(self):
@@ -108,6 +120,7 @@ class Schedule:
         # inserts the activity that has the same alias but wasn't necessarily scheduled into the done_idx array
         # this is done so that activities that have different locations and can in fact be scheduled simultaneously
         # are NOT rescheduled for the same leg. i.e. ensures that that leg is not repeating multi-location elements
+        # such as blind maze 1 and 2 or the wall (gagne's gateway and mancini's mountain)
         for dup in self.dup_idx:
             isect = np.intersect1d(done_idx,dup)
             if isect.size != 0:
@@ -137,7 +150,7 @@ class Schedule:
     # 1. Travel time between activities, defined as the sum of the squared distance between consecutive activity zones
     # 2. Activity requirement. If a required activity is not scheduled, outputs PENALTY_REQ. If it is scheduled, outputs 0
     # 3. Activity overlap. 2 activities cannot be scheduled at the same time
-    # 3. Day preferences, defined as the minimum of the squared distance between scheduled day and preferred days vector
+    # 4. Day preferences, defined as the minimum of the squared distance between scheduled day and preferred days vector
     def fitness(self):
 
         fitness = 0
@@ -148,47 +161,99 @@ class Schedule:
         travel_times = np.zeros(self.num_legs)
         req_sums = np.zeros(self.num_legs)
 
-        for leg in range(1,self.num_legs+1):
-            leg_sch = self.get_leg_schedule(leg)
+        #### activity overlap component
+        def act_overlap_operator(arr):
+            (arr,counts) = np.unique(arr, return_counts=True)
+
+            unq_acts = arr[arr != -1]
+            counts = counts[arr != -1]
+
+            return np.sum((self.act_gsizes[unq_acts]-counts)**2)
+
+        overlap_sum = self.penalty_act_overlap*np.sum(np.apply_along_axis(act_overlap_operator,1,sch))
+
+        #### activity length, repetition, and "consecutiveness" component #### 
+        def length_operator(arr):
+            leg_sch = arr
+
+            (arr,counts) = np.unique(leg_sch,return_counts=True)
+            tval = arr != -1
+            arr = arr[tval]
+            counts = counts[tval]
+
+            # the number of times a unique activity index appears in the schedule should be exactly equal to its length
+            len_rep_sum = np.sum((self.act_lengths[arr]-counts)**2)
+
+            diffs = np.abs(np.diff(leg_sch[leg_sch != -1],axis=0))
+            diffs[diffs >= 1] = 1
+            diff_sum = np.sum(diffs)
+
+            # intuition here is that the number of unique activities that any given leg is performing should
+            # be equal to 1+the number of "transitions" encountered in a leg's schedule
+            # a transition is defined as when the activity changes. Thus there should be 1 less transition than unique activities performed
+            consec_sum = np.sum((arr.size-(diff_sum+1))**2)
+
+            return len_rep_sum+consec_sum
+
+        len_sum = self.penalty_act_length*np.sum(np.apply_along_axis(length_operator,0,sch))
+        
+        #### travel time component: ####
+        zoner = np.vectorize(lambda a: 0 if (a == -1) else self.acts[a].zone)
+        zones = zoner(sch)
+        travel_sum = 0 #np.sum(np.diff(zones,axis=0)**2)
+
+        #### activity repetition component 
+        # def act_rep_operator(arr):
+        #     (arr,counts) = np.unique(arr,return_counts=True)
+        #     return np.sum((counts-1)**2)
+        
+        rep_sum = 0#self.penalty_act_dup*np.sum(np.apply_along_axis(act_rep_operator,0,sch))
+        # for leg in range(1,self.num_legs+1):
+        #     leg_sch = self.get_leg_schedule(leg)
             
-            #### travel time component: ####
-            zoner = np.vectorize(lambda a: 0 if (a is None) else self.acts[a].zone)
-            travel_times[leg-1] = np.sum(np.ediff1d(zoner(leg_sch))**2)
+        #     #### travel time component: ####
+        #     zoner = np.vectorize(lambda a: 0 if (a is None) else self.acts[a].zone)
+        #     travel_times[leg-1] = np.sum(np.ediff1d(zoner(leg_sch))**2)
 
-            #### requirement component: ####
-            acts_done = np.unique(leg_sch[leg_sch != np.array(None)])
-            req_sums[leg-1] = self.penalty_req*np.abs(np.sum(np.isin(req_acts_idx,acts_done))-req_acts_idx.size)
+        #     #### requirement component: ####
+        #     acts_done = np.unique(leg_sch[leg_sch != np.array(None)])
+        #     req_sums[leg-1] = self.penalty_req*np.abs(np.sum(np.isin(req_acts_idx,acts_done))-req_acts_idx.size)
 
-        #### activity overlap component: ####
-        overlap_sum = 0
-        for slot in range(0,sch.shape[0]):
-            flattened = np.ravel(sch[slot,:,:])
-            nonzero = flattened[flattened != 0]
-            (arr,counts) = np.unique(nonzero,return_counts=True)
-            overlap_sum = overlap_sum + (arr[counts>1].size)*self.penalty_act_overlap
+        # #### leg overlap component: ####
+        # overlap_sum = 0
+        # for slot in range(0,sch.shape[0]):
+        #     flattened = np.ravel(sch[slot,:,:])
+        #     nonzero = flattened[flattened != 0]
+        #     (arr,counts) = np.unique(nonzero,return_counts=True)
+        #     overlap_sum = overlap_sum + (arr[counts>1].size)*self.penalty_act_overlap
 
+            #### travel time component #### 
+            # indices = np.argsort(flattened) // 2 # integer division by two to get original activity indices
+        
+        #### schedule density component: ###
+        density_sum = (sch[sch==-1].size)**2
 
-        fitness = np.sum(travel_times)+np.sum(req_sums)+overlap_sum
+        fitness = travel_sum+overlap_sum+len_sum+rep_sum+density_sum
 
         return fitness
 
     def __gt__(self, other):
-        return self.fitness() > other.fitness()
+        return self.fitness_val > other.fitness_val
     
     def __lt__(self,other):
-        return self.fitness() < other.fitness()
+        return self.fitness_val < other.fitness_val
     
     def __ge__(self,other):
-        return self.fitness() >= other.fitness()
+        return self.fitness_val >= other.fitness_val
     
     def __le__(self,other):
-        return self.fitness() <= other.fitness()
+        return self.fitness_val <= other.fitness_val
     
     def __eq__(self,other):
-        return self.fitness() == other.fitness()
+        return self.fitness_val == other.fitness_val
     
     def __ne__(self,other):
-        return self.fitness() != other.fitness()
+        return self.fitness_val != other.fitness_val
 
     # returns a 1D list of the leg schedule 
     # def get_leg_schedule(self,leg):

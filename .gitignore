@@ -2,3 +2,5 @@
 creds.json
 __pycache__
 Generated\ Schedules
+*.bin
+*.docx
