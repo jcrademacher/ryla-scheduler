@@ -5,18 +5,31 @@ import activities
 
 class ScheduleSolver:
     def __init__(self, pop_size, num_legs=12, num_slots=48):
-        self.max_iters = 1000
-        self.elitist_pct = 10
+        self.max_iters = 10000
+        self.elitist_pct = 5
         self.mate_fitness_pct = 50
-        self.mutate_prob = 1
-        self.shuffle_sch_prob = 1/num_legs
-        self.break_inj_prob = 1/4
+        self.init_mutate_prob = 1
+        self.init_shuffle_sch_prob = 1/num_legs
+        self.init_shuffle_breaks_prob = 1/num_legs
+        self.init_break_inj_prob = 1/num_legs
+
+        self.mutate_prob = self.init_mutate_prob
+        self.shuffle_sch_prob = self.init_shuffle_sch_prob
+        self.shuffle_breaks_prob = self.init_shuffle_breaks_prob
+        self.break_inj_prob = self.init_break_inj_prob
+
+        self.exit_status = 0
+        
 
         self.population = np.ndarray((pop_size,),dtype=object)
 
         for i in range(0,pop_size):
             self.population[i] = Schedule(num_legs=num_legs,num_slots=num_slots)
     
+    def exit(self):
+        self.exit_status = 1
+        print("Exiting...")        
+
     def crossover(self,p1,p2):
         # method 1: one point crossover: randomly choose an index along s1 and s2,
         #           c1 = concat(s1[:xover],s2[xover:])
@@ -25,19 +38,20 @@ class ScheduleSolver:
         p2_flat = np.ravel(p2.sch)
 
 
-        diff1 = np.abs(np.diff(p1_flat))
-        diff2 = np.abs(np.diff(p2_flat))
+        # diff1 = np.abs(np.diff(p1_flat))
+        # diff2 = np.abs(np.diff(p2_flat))
 
-        idx1 = np.arange(0,p1_flat.size-1)[diff1 == 0]
-        idx2 = np.arange(0,p2_flat.size-1)[diff2 == 0]
+        # idx1 = np.arange(0,p1_flat.size-1)[diff1 == 0]
+        # idx2 = np.arange(0,p2_flat.size-1)[diff2 == 0]
 
-        poss_xover = np.intersect1d(idx1,idx2)
+        # poss_xover = np.intersect1d(idx1,idx2)
 
-        if poss_xover.size > 0:
-            xover = np.random.choice(poss_xover)
-        else:
-            xover = np.random.randint(0,p1.sch.size)
+        # if poss_xover.size > 0:
+        #     xover = np.random.choice(poss_xover)
+        # else:
+        xover = np.random.randint(0,p1_flat.size)
 
+        # c1 = np.hstack((p1.sch[:,:xover],p2.sch[:,xover:]))
         c1 = np.reshape(np.concatenate((p1_flat[:xover],p2_flat[xover:])),p1.sch.shape)
         # c2 = np.reshape(np.concatenate((p2_flat[:xover],p1_flat[xover:])),p2.sch.shape)
 
@@ -45,36 +59,28 @@ class ScheduleSolver:
     
     def mutate(self,sch_obj):
         sch = sch_obj.sch
-        act_length = sch.shape[1]
-
-        #swap activity columns. During mutation this guarantees that if the original schedule was completely valid, the mutated schedule will also be valid
-        # randarr = np.random.randint(0,act_length)
-        # adx1 = randarr[0]
-        # adx2 = randarr[1]
-
-        # temp = np.array(sch[:,adx1,:])
-        # sch[:,adx1,:] = sch[:,adx2,:]
-        # sch[:,adx2,:] = temp
 
         # randomly change the activity index in a given slot with probability self.mutate_prob:
-        if np.random.randint(0,1/self.mutate_prob) == 0:
+        if np.random.rand() < self.mutate_prob:
             raveled = np.ravel(sch)
-            raveled[np.random.randint(0,raveled.size)] = np.random.randint(0,sch_obj.acts.size)
+            raveled[np.random.randint(0,raveled.size)] = np.random.randint(1,sch_obj.acts.size)
             sch = np.reshape(raveled,sch.shape)
         
-        if np.random.randint(0,1/self.shuffle_sch_prob) == 0:
+        if np.random.rand() < self.shuffle_sch_prob:
             rand_leg = np.random.randint(0,sch_obj.num_legs)
-            (unq,counts) = np.unique(sch[:,rand_leg],return_counts=True)
-            st = np.random.get_state()
-            np.random.shuffle(unq)
-            np.random.set_state(st)
-            np.random.shuffle(counts)
-            np.random.seed(None)
-            sch[:,rand_leg] = np.repeat(unq,counts)
+            np.random.shuffle(sch[:,rand_leg])
 
-        if np.random.randint(0,1/self.break_inj_prob) == 0:
+        if np.random.rand() < self.shuffle_breaks_prob:
             rand_leg = np.random.randint(0,sch_obj.num_legs)
-            sch[:,rand_leg] = -1
+            leg_sch = sch[:,rand_leg]
+            sch_no_b = leg_sch[leg_sch != 0]
+            num_breaks = np.sum(leg_sch == 0)
+            sch[:,rand_leg] = np.insert(sch_no_b,np.random.randint(0,sch_no_b.size+1,size=num_breaks),0)
+
+        # if np.random.rand() < self.break_inj_prob:
+        #     rand_leg = np.random.randint(0,sch_obj.num_legs)
+        #     rand_slot = np.random.randint(0,sch_obj.num_slots)
+        #     sch[rand_slot,rand_leg] = 0
 
         return Schedule(num_legs=sch_obj.num_legs,num_slots=sch_obj.num_slots,sch=sch)
 
@@ -82,13 +88,11 @@ class ScheduleSolver:
         # best = np.sort(self.population)[0]
         # print(f'Fitness: {best.fitness()}\n')
         # return best
-
-        found = False
         iter = 0
 
         fitnesses = np.zeros((self.max_iters,))
 
-        while not found and iter < self.max_iters:
+        while iter < self.max_iters and not self.exit_status:
             start_time = time.time()
             ## sort in order of fitness
             self.population = np.sort(self.population)
@@ -115,17 +119,34 @@ class ScheduleSolver:
             end_time = time.time()
 
             fitness = self.population[0].fitness_val
+            (travel_sum,overlap_sum,rep_sum,density_sum,period_sum) = self.population[0].fitness_comp
+
             print(f'Generation: {iter}')
             print('Generation time: %.2f seconds' % (end_time-start_time))
-            print(f'Fitness: {fitness}\n')
+            print(f'Fitness: {fitness}')
+            print("Shuffle sch prob: %.2f" % self.shuffle_sch_prob)
+            print("Mutate prob: %.2f" % self.mutate_prob)
+            print(f"Validity: {rep_sum + overlap_sum + period_sum}\n")
+
             fitnesses[iter] = fitness
 
-            if fitness <= 0:
+            if iter == 0:
+                self.start_fitness = fitness
+            
+            self.mod_prob(fitness)
+           
+
+            if fitness < 5:
                 print("Optimum found")
                 break
 
             iter = iter + 1
 
         return (self.population[0], fitnesses)
-
+    
+    def mod_prob(self,fitness):
+        pass
+        # self.shuffle_sch_prob = (1-fitness/(self.start_fitness+1))**5*self.init_shuffle_sch_prob
+        # self.shuffle_breaks_prob = (1-fitness/(self.start_fitness+1))*self.init_shuffle_breaks_prob
+        # self.mutate_prob = (fitness/self.start_fitness)**(1/3)*self.init_mutate_prob
 

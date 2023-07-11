@@ -61,6 +61,7 @@ class Activity:
 
 def get_all_activities():
     activities = [
+        Activity("Break",Activity.TYPE_ALL,1,Activity.ZONE_CENTRAL),
         Activity("Moby Deck",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE),
         Activity("Full House",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE),
         Activity("Lord of the Rings",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE),
@@ -75,9 +76,9 @@ def get_all_activities():
         Activity("Leighton's Leap",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE), 
         Activity("Wobbly Bob",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE),
         Activity("Gagne's Gateway",Activity.TYPE_ELEMENT,3,Activity.ZONE_RIDGE,required=True,preferred_days=[2,3],id=1,alias="The Wall"),
-        Activity("Mancini's Mountain",Activity.TYPE_ELEMENT,3,Activity.ZONE_RIDGE,required=True,preferred_days=[2,3],id=2,alias="The Wall"),
+        # Activity("Mancini's Mountain",Activity.TYPE_ELEMENT,3,Activity.ZONE_RIDGE,required=True,preferred_days=[2,3],id=2,alias="The Wall"),
         Activity("Blind Maze 1",Activity.TYPE_ELEMENT,2,Activity.ZONE_WATERFRONT,preferred_days=[1,2,3],id=1,alias="Blind Maze"),
-        Activity("Blind Maze 2",Activity.TYPE_ELEMENT,2,Activity.ZONE_CENTRAL,preferred_days=[1,2,3],id=2,alias="Blind Maze"),
+        # Activity("Blind Maze 2",Activity.TYPE_ELEMENT,2,Activity.ZONE_CENTRAL,preferred_days=[1,2,3],id=2,alias="Blind Maze"),
         Activity("See Saw",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE,preferred_days=[1,2],group_size=2),
         Activity("Community Build",Activity.TYPE_PROGRAM,3,Activity.ZONE_CENTRAL,preferred_days=[1,2],group_size=2,required=True),
         Activity("Ethics",Activity.TYPE_PROGRAM,3,Activity.ZONE_WATERFRONT,required=True,preferred_days=[1,2]),
@@ -86,6 +87,7 @@ def get_all_activities():
         Activity("Leadership With",Activity.TYPE_PROGRAM,3,Activity.ZONE_WATERFRONT,required=True,preferred_days=[1,2]),
         Activity("Water Program",Activity.TYPE_PROGRAM,4,Activity.ZONE_WATERFRONT,required=True,preferred_days=[1,2],group_size=2),
         Activity("High Ropes",Activity.TYPE_PROGRAM,4,Activity.ZONE_CENTRAL,required=True,preferred_days=[0,1,2],group_size=1)
+        # Activity("Break",Activity.TYPE_ALL,1,Activity.ZONE_CENTRAL)
     ]
 
     return np.array(activities)
