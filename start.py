@@ -33,7 +33,7 @@ if __name__ == "__main__":
     
     acts = activities.get_all_activities()
     num_legs = 12
-    num_slots = 24
+    num_slots = 8
 
     for a in range(0,num_legs):
         frame=QLabel(str(a+1))
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         frame.setLineWidth(1)
         layout.addWidget(frame, 0, a, 1 ,1)
 
-    pop_size = 50
+    pop_size = 500
     solver = ScheduleSolver(pop_size,num_legs=num_legs,num_slots=num_slots)
 
     def signal_handler(sig, frame):
@@ -50,7 +50,9 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, signal_handler)
 
+    # solver.exit()
     (solution,fitnesses) = solver.solve()
+    
     sch = solution.sch
 
     solution.print_summary()
@@ -61,17 +63,17 @@ if __name__ == "__main__":
 
     act_lengths = activities.get_activities_mapped(lambda a: a.length)
 
-    expanded_sch = solution.expand()
+    # sch = solution.expand()
     overlaps = solution.get_overlaps()
 
-    for col in range(0,expanded_sch.shape[1]):
+    for col in range(0,sch.shape[1]):
         row = 0
-        while row < expanded_sch.shape[0]:
+        while row < sch.shape[0]:
             if row == -1:
                 frame=QLabel()
 
             
-            adx = expanded_sch[row,col]
+            adx = sch[row,col]
 
             length = 0
             newadx = adx
@@ -80,10 +82,10 @@ if __name__ == "__main__":
                 length = length + 1
                 row = row + 1
 
-                if row >= expanded_sch.shape[0]:
+                if row >= sch.shape[0]:
                     break
 
-                newadx = expanded_sch[row,col]
+                newadx = sch[row,col]
 
 
             name = f"{acts[adx].name} (l={length})"

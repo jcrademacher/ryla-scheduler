@@ -74,7 +74,7 @@ def get_all_activities():
         Activity("Birdie's Nest",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE), 
         Activity("Giant's Finger",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE), 
         Activity("Leighton's Leap",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE), 
-        Activity("Wobbly Bob",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE),
+        # Activity("Wobbly Bob",Activity.TYPE_ELEMENT,2,Activity.ZONE_RIDGE),
         Activity("Gagne's Gateway",Activity.TYPE_ELEMENT,3,Activity.ZONE_RIDGE,required=True,preferred_days=[2,3],id=1,alias="The Wall"),
         # Activity("Mancini's Mountain",Activity.TYPE_ELEMENT,3,Activity.ZONE_RIDGE,required=True,preferred_days=[2,3],id=2,alias="The Wall"),
         Activity("Blind Maze 1",Activity.TYPE_ELEMENT,2,Activity.ZONE_WATERFRONT,preferred_days=[1,2,3],id=1,alias="Blind Maze"),
