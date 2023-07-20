@@ -9,17 +9,18 @@ class Schedule:
         # rows = total activity time at RYLA (in 30 min timeslot units) and
         # cols = number of activities
         # the final schedule output is an array of leg #'s in each index of the array representing the master schedule
-        self.penalty_req = 1
-        self.penalty_act_overlap = 5
-        self.penalty_act_rep = 5
-        self.penalty_period = 10    
-        self.penalty_density = 4
+        self.penalty_req = 2
+        self.penalty_act_overlap = 2
+        self.penalty_act_rep = 2
+        self.penalty_period = 2
+        self.penalty_density = 1
 
         self.acts = activities.get_all_activities()
 
         self.num_legs = num_legs
         self.num_slots = num_slots
-        self.period_len = np.array([8,8,8,8]) # measured in length units (30 min slots)
+        self.period_len = np.array([10,8,10,8,10,9]) # measured in length units (30 min slots)
+        self.tot_len = np.sum(self.period_len)
 
         (req_acts, req_acts_idx) = activities.get_required_activities()
         self.req_acts_idx = req_acts_idx
@@ -47,11 +48,12 @@ class Schedule:
     def init_schedule(self):
         tot_len = np.sum(self.period_len)
         self.sch = np.zeros((tot_len,self.num_legs),dtype=int)
+        act_indices = np.arange(self.acts.size)
 
         for i in range(0,self.num_legs):
             valid = False
             while not valid:
-                rand_leg_sch = np.random.randint(0,self.acts.size,size=(tot_len // 2,))
+                rand_leg_sch = np.random.choice(act_indices,replace=False,size=np.round(tot_len / np.average(self.act_lengths)).astype(int))
                 rand_leg_sch = np.repeat(rand_leg_sch,self.act_lengths[rand_leg_sch])
 
                 if rand_leg_sch.size == tot_len:
@@ -82,7 +84,7 @@ class Schedule:
             unq_acts = arr[arr != 0]
             counts = counts[arr != 0]
 
-            return np.sum((self.act_gsizes[unq_acts]-counts)**2)
+            return np.sum((self.act_gsizes[unq_acts]-counts)**6)
 
         overlap_sum = self.penalty_act_overlap*np.sum(np.apply_along_axis(act_overlap_operator,1,sch))
 
@@ -110,30 +112,34 @@ class Schedule:
 
             return np.sum((counts - self.act_lengths[unq])**2)
 
+        # sch_diff =np.diff(np.sort(sch,axis=0),axis=0)
         rep_sum = self.penalty_act_rep*np.sum(np.apply_along_axis(act_rep_operator,0,sch))
         # sorted = 
         # diffs = np.diff(np.sort(sch,axis=0),axis=0)
         # rep_sum = self.penalty_act_rep*(diffs[diffs == 0].size)**2
         
         #### period constraint component ####
-        # a = np.cumsum(self.act_lengths[sch],axis=0)
-        # constr_sum = np.sum((np.sum(np.isin(a,np.cumsum(self.period_len)),axis=0)-self.period_len.size)**2)
-        # tot_len_sum = np.sum((a[-1,:] - np.sum(self.period_len))**2)
         diff = np.diff(sch,axis=0)
         transitions = diff[np.cumsum(self.period_len[:-1])-1,:]
 
-        period_sum = self.penalty_period*(np.sum(np.sum(transitions==0,axis=1)**2))
+        period_sum = self.penalty_period*(np.sum(transitions==0)**2)
+
+        #### activity requirement component ####
+        def act_req_operator(arr):
+            return (self.req_acts_idx.size - np.intersect1d(arr,self.req_acts_idx).size)**2
+
+        req_sum = self.penalty_req*np.sum(np.apply_along_axis(act_req_operator,0,sch))
 
         #### travel time component: ####
-        zoner = np.vectorize(lambda a: 0 if (a == -1) else self.acts[a].zone)
-        zones = zoner(sch)
+        # zoner = np.vectorize(lambda a: 0 if (a == -1) else self.acts[a].zone)
+        # zones = zoner(sch)
         travel_sum = 0 #np.sum(np.diff(zones,axis=0)**2)
         
         #### schedule density component: ####
-        density_sum = np.sum(np.sum(sch == 0,axis=0)**2)
+        density_sum = self.penalty_density*np.sum((np.sum(sch == 0,axis=0)-1)**2)
         # density_sum = self.penalty_density*np.sum(np.sum(sch[:np.sum(self.period_len),:] == 0,axis=0))
 
-        fitness = (travel_sum,overlap_sum,rep_sum,density_sum,period_sum)
+        fitness = (travel_sum,overlap_sum,rep_sum,density_sum,period_sum,req_sum)
 
         return (np.sum(np.array(fitness)),fitness)
     
@@ -153,7 +159,7 @@ class Schedule:
     def get_density(self):
         return 1-(self.sch[self.sch==0].size)/self.sch.size
     
-    def get_overlaps(self):
+    def get_overlaps(self,leg_num=None):
         def act_overlap_operator(arr):
             (unq,counts) = np.unique(arr,return_counts=True)
             unq_acts = unq[unq != 0]
@@ -168,8 +174,10 @@ class Schedule:
         # overlaps = np.zeros(expanded_sch.shape[0],dtype=object)
         # overlaps = np.array(list(map(act_overlap_operator,list(expanded_sch))),dtype=object)
         # pass
-
-        return np.apply_along_axis(act_overlap_operator,1,self.sch)
+        if leg_num is None:
+            return np.apply_along_axis(act_overlap_operator,1,self.sch)[:,:]
+        else:
+            return np.apply_along_axis(act_overlap_operator,1,self.sch)[:,leg_num]
     
     def print_summary(self):
         print("Density: %.2f" % self.get_density())

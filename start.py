@@ -42,7 +42,7 @@ if __name__ == "__main__":
         frame.setLineWidth(1)
         layout.addWidget(frame, 0, a, 1 ,1)
 
-    pop_size = 500
+    pop_size = 100
     solver = ScheduleSolver(pop_size,num_legs=num_legs,num_slots=num_slots)
 
     def signal_handler(sig, frame):
