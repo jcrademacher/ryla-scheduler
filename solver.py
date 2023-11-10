@@ -7,13 +7,13 @@ class ScheduleSolver:
     def __init__(self, pop_size, num_legs=12, num_slots=48):
         self.max_iters = 1000
         self.elitist_pct = 5
-        self.mutate_pct = 30
+        self.mutate_pct = 20
         self.mate_fitness_pct = 50 
         self.init_mutate_prob = 0.5
-        self.init_shuffle_sch_prob = 0.2
-        self.init_swap_acts_prob = 0.1
-        self.init_shuffle_breaks_prob = 0.05
-        self.init_break_inj_prob = 0.01
+        self.init_shuffle_sch_prob = 0.1
+        self.init_swap_acts_prob = 1
+        self.init_shuffle_breaks_prob = 0.01
+        self.init_break_inj_prob = 0.1
 
         self.mutate_prob = self.init_mutate_prob
         self.shuffle_sch_prob = self.init_shuffle_sch_prob
@@ -80,7 +80,7 @@ class ScheduleSolver:
         (split_idx2,reps2) = self.get_slice_indices(p2)#np.union1d(idx2,np.cumsum(p2_lens)-p2_lens[0])
 
         poss_xover = np.intersect1d(split_idx1,split_idx2)
-        xover_size = 4
+        xover_size = 1
 
         if poss_xover.size >= xover_size:
             xovers = np.sort(np.random.choice(poss_xover,size=xover_size,replace=False))
@@ -172,12 +172,12 @@ class ScheduleSolver:
             oulap_spt = list(map(lambda a: a[0],np.split(oulaps,np.arange(1,leg_sch.size)[diff!=0])))
             choices = np.arange(len(spt))[oulap_spt]
 
-            # if choices.size >= 2:
-            #     idxs = np.random.choice(choices,replace=False,size=2)
-            # elif choices.size == 1:
-            #     idxs = np.array([choices[0], np.random.randint(len(spt))])
-            # else:
-            idxs = np.random.choice(np.arange(len(spt)),replace=False,size=2)
+            if choices.size >= 2:
+                idxs = np.random.choice(choices,replace=False,size=2)
+            elif choices.size == 1:
+                idxs = np.array([choices[0], np.random.randint(len(spt))])
+            else:
+                idxs = np.random.choice(np.arange(len(spt)),replace=False,size=2)
 
             # lsc = list(map(lambda a: (act_lengths[a[0]],a.size,a[0]), spt))
             # sizes = np.array(list(map(lambda a: a.size, spt)))  
@@ -243,8 +243,10 @@ class ScheduleSolver:
         fitnesses = np.zeros((self.max_iters,))
         np.random.seed(None)
 
+        start_time = time.time()
+
         while iter < self.max_iters and not self.exit_status:
-            start_time = time.time()
+            
             ## sort in order of fitness
             self.population = np.sort(self.population)
             new_generation = np.ndarray((self.population.size,),dtype=object)
@@ -285,7 +287,7 @@ class ScheduleSolver:
             (travel_sum,overlap_sum,rep_sum,density_sum,period_sum,req_sum) = fitness_comp
 
             print(f'Generation: {iter}')
-            print('Generation time: %.2f seconds' % (end_time-start_time))
+            print('Elasped time: %.2f seconds' % (end_time-start_time))
             print(f'Fitness: {fitness}')
             # print("Shuffle sch prob: %.2f" % self.shuffle_sch_prob)
             # print("Mutate prob: %.2f" % self.mutate_prob)

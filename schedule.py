@@ -9,10 +9,10 @@ class Schedule:
         # rows = total activity time at RYLA (in 30 min timeslot units) and
         # cols = number of activities
         # the final schedule output is an array of leg #'s in each index of the array representing the master schedule
-        self.penalty_req = 2
-        self.penalty_act_overlap = 2
-        self.penalty_act_rep = 2
-        self.penalty_period = 2
+        self.penalty_req = 1
+        self.penalty_act_overlap = 1
+        self.penalty_act_rep = 1
+        self.penalty_period = 1
         self.penalty_density = 1
 
         self.acts = activities.get_all_activities()

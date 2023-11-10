@@ -32,7 +32,7 @@ if __name__ == "__main__":
     # window.setFixedHeight(800)
     
     acts = activities.get_all_activities()
-    num_legs = 12
+    num_legs = 8
     num_slots = 8
 
     for a in range(0,num_legs):
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         frame.setLineWidth(1)
         layout.addWidget(frame, 0, a, 1 ,1)
 
-    pop_size = 100
+    pop_size = 40
     solver = ScheduleSolver(pop_size,num_legs=num_legs,num_slots=num_slots)
 
     def signal_handler(sig, frame):
